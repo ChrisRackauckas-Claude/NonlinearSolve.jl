@@ -20,8 +20,8 @@ StaticArraysCore = "1e83bf80-4336-4d27-bf5d-d5a4f845583c"
 [weakdeps]
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 
-[sources]
-NonlinearSolveBase = {path = "../NonlinearSolveBase"}
+[sources.NonlinearSolveBase]
+path = "../NonlinearSolveBase"
 
 [extensions]
 NonlinearSolveQuasiNewtonForwardDiffExt = "ForwardDiff"
@@ -45,7 +45,7 @@ LinearAlgebra = "1.10"
 LinearSolve = "2.36.1, 3"
 MaybeInplace = "0.1.4"
 NonlinearProblemLibrary = "0.1.2"
-NonlinearSolveBase = "1.15"
+NonlinearSolveBase = "1.15, 2"
 Pkg = "1.10"
 PrecompileTools = "1.2"
 ReTestItems = "1.24"
