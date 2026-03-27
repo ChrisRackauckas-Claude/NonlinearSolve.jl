@@ -164,18 +164,24 @@ function _scc_solve(prob::SciMLBase.SCCNonlinearProblem, alg::SCCAlg; kwargs...)
         sols = iteratively_build_sols(alg, prob.probs, prob.explicitfuns!; kwargs...)
     end
 
-    # TODO: fix allocations with a lazy concatenation
-    u = reduce(vcat, sols)
-    resid = reduce(vcat, getproperty.(sols, :resid))
+    # Collect u and resid with explicit splatted vcat (not reduce, which
+    # returns Any on tuples and breaks Enzyme's type analysis).
+    u = vcat(map(s -> s.u, sols)...)
+    resid = vcat(map(s -> s.resid, sols)...)
 
-    retcode = if !all(SciMLBase.successful_retcode, sols)
-        idx = findfirst(!SciMLBase.successful_retcode, sols)
-        sols[idx].retcode
-    else
-        SciMLBase.ReturnCode.Success
+    # Check retcodes with a simple loop instead of all/findfirst
+    # (higher-order functions over tuples can confuse Enzyme).
+    retcode = SciMLBase.ReturnCode.Success
+    for s in sols
+        if !SciMLBase.successful_retcode(s)
+            retcode = s.retcode
+            break
+        end
     end
 
-    return SciMLBase.build_solution(prob, alg, u, resid; retcode, original = sols)
+    # Omit `original = sols` — the sub-solutions tuple nested inside a
+    # NamedTuple kwarg exceeds Enzyme's type analysis limits.
+    return SciMLBase.build_solution(prob, alg, u, resid; retcode)
 end
 
 export scc_solve_up
