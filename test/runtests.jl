@@ -106,6 +106,13 @@ end
     else
         @info "Running tests for group: $(GROUP)"
 
+        # On Julia < 1.11 the root test env ignores the [sources] table, so the base-env
+        # groups below would test the REGISTERED sublibraries instead of the PR branch
+        # code (and fail outright whenever a PR adds a symbol not yet registered, e.g. the
+        # lts `UndefVarError: ArcLengthContinuation not defined`); develop the in-repo
+        # paths first.
+        _develop_inrepo_sources()
+
         # --- Base-env groups (no extra deps; part of the All run) ---
         if GROUP == "All" || GROUP == "Core"
             @time @safetestset "NLLS Analytic Jacobian" include("Core/core_tests__item1.jl")
