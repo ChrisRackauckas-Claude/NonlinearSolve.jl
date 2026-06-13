@@ -155,14 +155,14 @@ end
             @time @safetestset "HomotopyProblem defaults to HomotopySweep when alg is nothing" include("Core/homotopy_sweep_tests__item14.jl")
         end
 
-        if GROUP == "All" || GROUP == "NoPre"
-            @time @safetestset "Basic PolyAlgorithms" include("NoPre/core_tests__item2.jl")
-            @time @safetestset "PolyAlgorithms Autodiff" include("NoPre/core_tests__item4.jl")
-            @time @safetestset "Ensemble Nonlinear Problems" include("NoPre/core_tests__item6.jl")
-            @time @safetestset "Out-of-place Matrix Resizing" include("NoPre/core_tests__item14.jl")
-            @time @safetestset "Inplace Matrix Resizing" include("NoPre/core_tests__item15.jl")
-            @time @safetestset "Default Algorithm Singular Handling" include("NoPre/core_tests__item19.jl")
-            @time @safetestset "23 Test Problems: PolyAlgorithms" include("NoPre/23_test_problems_tests__item1.jl")
+        if GROUP == "All" || GROUP == "PolyAlgorithms"
+            @time @safetestset "Basic PolyAlgorithms" include("PolyAlgorithms/core_tests__item2.jl")
+            @time @safetestset "PolyAlgorithms Autodiff" include("PolyAlgorithms/core_tests__item4.jl")
+            @time @safetestset "Ensemble Nonlinear Problems" include("PolyAlgorithms/core_tests__item6.jl")
+            @time @safetestset "Out-of-place Matrix Resizing" include("PolyAlgorithms/core_tests__item14.jl")
+            @time @safetestset "Inplace Matrix Resizing" include("PolyAlgorithms/core_tests__item15.jl")
+            @time @safetestset "Default Algorithm Singular Handling" include("PolyAlgorithms/core_tests__item19.jl")
+            @time @safetestset "23 Test Problems: PolyAlgorithms" include("PolyAlgorithms/23_test_problems_tests__item1.jl")
         end
 
         if GROUP == "All" || GROUP == "Verbosity"
