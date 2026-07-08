@@ -59,7 +59,7 @@ Simply put the desired scheme as follows:
 module RadiusUpdateSchemes
     # The weird definitions here are needed to main compatibility with the older enum variants
 
-    export Bastin, Fan, Hei, NLsolve, NocedalWright, Simple, Yuan
+    export Simple, NLsolve, NocedalWright, Hei, Yuan, Bastin, Fan
 
     abstract type AbstractRadiusUpdateScheme end
 
