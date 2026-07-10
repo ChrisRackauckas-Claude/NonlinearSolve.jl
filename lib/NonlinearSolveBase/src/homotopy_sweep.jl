@@ -83,12 +83,16 @@ Keyword arguments:
   - `predictor`: `:secant` (default) extrapolates the initial guess for the next step
     linearly through the last two accepted points, so the corrector starts on the path
     tangent rather than at the previous solution; `:constant` warm-starts from the
-    previous solution unchanged. The secant is trust-monitored: whenever its measured
-    prediction error is no better than half that of the trivial constant prediction
-    (as happens right after a sharp turn in the path, where the stale tangent points
-    away from the path), or a step is rejected outright, subsequent steps fall back to
-    the constant warm start until two consecutive accepted steps measure good secant
-    quality again.
+    previous solution unchanged. `:quadratic` and `:cubic` extrapolate through the
+    last three / four accepted points with the interpolating polynomial (exact for
+    non-uniform λ spacing), adaptively dropping to the highest order the accumulated
+    history supports — and restarting from the secant after a step rejection, since
+    the pre-rejection spacing is stale. Every extrapolating predictor is
+    trust-monitored: whenever the measured secant prediction error is no better than
+    half that of the trivial constant prediction (as happens right after a sharp turn
+    in the path, where the stale tangent points away from the path), or a step is
+    rejected outright, subsequent steps fall back to the constant warm start until two
+    consecutive accepted steps measure good secant quality again.
   - `tracking_maxiters`: iteration cap for the inner solver on interior tracking
     steps (default 10, in the range used by MatCont,
     HomotopyContinuation.jl, and OpenModelica; `nothing` disables). A rejected step retries at half the
@@ -182,10 +186,12 @@ function HomotopySweep(;
             )
         )
     end
-    if predictor !== :secant && predictor !== :constant
+    if predictor !== :secant && predictor !== :constant && predictor !== :quadratic &&
+            predictor !== :cubic
         throw(
             ArgumentError(
-                "HomotopySweep `predictor` must be :secant or :constant, got :$predictor"
+                "HomotopySweep `predictor` must be :constant, :secant, :quadratic, or " *
+                    ":cubic, got :$predictor"
             )
         )
     end
@@ -259,21 +265,59 @@ function _sweep_extrapolate!(dst, u, u_prev, s)
     end
 end
 
+# Polynomial extrapolation through the last `ord + 1` accepted points, evaluated at
+# `t`. The scalar weights are the Lagrange basis values (algebraically identical to
+# the Newton divided-difference form of the same interpolating polynomial, so
+# non-uniform λ spacing is handled exactly); the prediction is then a single fused
+# linear combination of the stored iterates — no divided-difference table of vectors,
+# so the mutable path writes into the reused `dst` buffer and the immutable path
+# stays on the stack. `ord == 1` reduces to the secant.
+_sweep_predictor_order(predictor::Symbol) =
+    predictor === :cubic ? 3 : predictor === :quadratic ? 2 : predictor === :secant ? 1 : 0
+
+function _sweep_predict!(dst, ord::Int, t, λ, λp, λp2, λp3, u, up, up2, up3)
+    if ord >= 3
+        w = ((t - λp) * (t - λp2) * (t - λp3)) / ((λ - λp) * (λ - λp2) * (λ - λp3))
+        wp = ((t - λ) * (t - λp2) * (t - λp3)) / ((λp - λ) * (λp - λp2) * (λp - λp3))
+        wp2 = ((t - λ) * (t - λp) * (t - λp3)) / ((λp2 - λ) * (λp2 - λp) * (λp2 - λp3))
+        wp3 = ((t - λ) * (t - λp) * (t - λp2)) / ((λp3 - λ) * (λp3 - λp) * (λp3 - λp2))
+        if Utils.can_setindex(u)
+            @. dst = w * u + wp * up + wp2 * up2 + wp3 * up3
+            return dst
+        else
+            return @. w * u + wp * up + wp2 * up2 + wp3 * up3
+        end
+    elseif ord == 2
+        w = ((t - λp) * (t - λp2)) / ((λ - λp) * (λ - λp2))
+        wp = ((t - λ) * (t - λp2)) / ((λp - λ) * (λp - λp2))
+        wp2 = ((t - λ) * (t - λp)) / ((λp2 - λ) * (λp2 - λp))
+        if Utils.can_setindex(u)
+            @. dst = w * u + wp * up + wp2 * up2
+            return dst
+        else
+            return @. w * u + wp * up + wp2 * up2
+        end
+    else
+        return _sweep_extrapolate!(dst, u, up, (t - λ) / (λ - λp))
+    end
+end
+
 # Constant warm start: a copy of `u` into the reused `dst` buffer (mutable) or `u`
 # itself (immutable — the inner solver cannot mutate it in place, so aliasing is
 # harmless).
 _sweep_warmstart!(dst, u) = Utils.can_setindex(u) ? (copyto!(dst, u); dst) : u
 
-# Accept `sol_u` as the new current iterate, shifting the old current into `u_prev`. For
-# mutable arrays this swaps the two buffers and copies in place (no allocation); for
-# immutable `u` it reassigns (stack). Returns the new `(u, u_prev)`.
-function _sweep_accept!(u, u_prev, sol_u)
+# Accept `sol_u` as the new current iterate, rotating the history ring: the oldest
+# buffer (`u_prev3`) is recycled as the new current. For mutable arrays this is pure
+# pointer rotation plus one in-place copy (no allocation); for immutable `u` it
+# reassigns (stack). Returns the new `(u, u_prev, u_prev2, u_prev3)`.
+function _sweep_accept!(u, u_prev, u_prev2, u_prev3, sol_u)
     if Utils.can_setindex(u)
-        u, u_prev = u_prev, u
+        u, u_prev, u_prev2, u_prev3 = u_prev3, u, u_prev, u_prev2
         copyto!(u, sol_u)
-        return u, u_prev
+        return u, u_prev, u_prev2, u_prev3
     else
-        return sol_u, u
+        return sol_u, u, u_prev, u_prev2
     end
 end
 
@@ -400,13 +444,22 @@ function CommonSolve.solve(
         prob, alg, u, last_sol.resid; retcode = ReturnCode.Success
     )
 
-    # Reused across every step: `u`/`u_prev` are the last two accepted iterates (their
-    # buffers are swapped, never reallocated); `virtual` is scratch for the secant
-    # quality gate. λ_prev == λ means there is no history yet and the predictor falls
-    # back to a constant warm start.
+    # Reused across every step: `u`/`u_prev`/`u_prev2`/`u_prev3` are the last accepted
+    # iterates (a rotating ring of buffers, never reallocated); `virtual` is scratch
+    # for the secant quality gate. `hist` counts how many previous accepted points are
+    # valid predictor history (0 right after the anchor), capping the polynomial order
+    # at what the history supports; it is downgraded to at most 1 on a rejection, so a
+    # higher-order predictor restarts from the secant once trust recovers rather than
+    # extrapolating through pre-rejection spacing.
+    order = _sweep_predictor_order(alg.predictor)
     u_prev = copy(u)
+    u_prev2 = copy(u)
+    u_prev3 = copy(u)
     virtual = Utils.safe_similar(u)
     λ_prev = λ
+    λ_prev2 = λ
+    λ_prev3 = λ
+    hist = 0
     streak = 0
     # Consecutive accepted steps whose measured secant quality was good. The secant is
     # only used while trust ≥ 2: requiring sustained evidence (hysteresis) keeps one
@@ -434,12 +487,18 @@ function CommonSolve.solve(
                 prob, alg, u, nothing; retcode = ReturnCode.Stalled
             )
         end
-        used_secant = alg.predictor === :secant && trust >= 2 && λ_prev != λ
-        guess = if used_secant
+        # Effective order: the requested polynomial order, capped by the available
+        # history (adaptive order: cubic degrades to quadratic to secant while history
+        # is short or freshly downgraded).
+        ord = min(order, hist)
+        used_extrap = ord >= 1 && trust >= 2
+        guess = if used_extrap
             # Bisection shrinks `next_λ - λ` and with it the extrapolation length, so a
             # prediction that overshoots degrades gracefully toward the constant guess.
-            s = (next_λ - λ) / (λ - λ_prev)
-            _sweep_extrapolate!(guess, u, u_prev, s)
+            _sweep_predict!(
+                guess, ord, next_λ, λ, λ_prev, λ_prev2, λ_prev3, u, u_prev, u_prev2,
+                u_prev3
+            )
         else
             _sweep_warmstart!(guess, u)
         end
@@ -452,8 +511,11 @@ function CommonSolve.solve(
             # the full user budget before letting the failure feed the bisection
             # logic. The prediction is recomputed (never reuse `guess`: the capped
             # solve may have iterated in place in that buffer).
-            retry_guess = if used_secant
-                _sweep_extrapolate!(virtual, u, u_prev, (next_λ - λ) / (λ - λ_prev))
+            retry_guess = if used_extrap
+                _sweep_predict!(
+                    virtual, ord, next_λ, λ, λ_prev, λ_prev2, λ_prev3, u, u_prev,
+                    u_prev2, u_prev3
+                )
             else
                 u
             end
@@ -489,10 +551,16 @@ function CommonSolve.solve(
             else
                 disp_prev = Utils.norm_op(L2_NORM, -, last_sol.u, u)
             end
-            # accept: swap `u`↔`u_prev` and copy the solution into `u` (no allocation).
-            u, u_prev = _sweep_accept!(u, u_prev, last_sol.u)
+            # accept: rotate the history ring and copy the solution into the recycled
+            # oldest buffer (no allocation).
+            u, u_prev, u_prev2, u_prev3 = _sweep_accept!(
+                u, u_prev, u_prev2, u_prev3, last_sol.u
+            )
+            λ_prev3 = λ_prev2
+            λ_prev2 = λ_prev
             λ_prev = λ
             λ = next_λ
+            hist = min(hist + 1, 3)
             λ == λend && break
             if alg.adaptive
                 nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
@@ -533,6 +601,9 @@ function CommonSolve.solve(
             # a rejected step is evidence against the tangent: bisection retries (and
             # the steps right after) warm-start constantly until quality re-accumulates
             trust = 0
+            # downgrade higher-order history: the pre-rejection spacing is stale, so
+            # once trust recovers the predictor restarts from the secant
+            hist = min(hist, 1)
         else
             # on failure: u is the last converged iterate (λ<λ1); resid is from the failed step (advisory)
             return SciMLBase.build_solution(

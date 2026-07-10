@@ -11,7 +11,9 @@ anchor solve at `λspan[1]`, then predictor-corrector λ-stepping with the class
 success/failure step control (failure halves the increment; `expand_threshold`
 consecutive successes grow it by `expand_factor` up to `max_step_factor` of the span,
 gated on the `expand_quality` secant-prediction error estimate), with a
-trust-monitored `:secant` warm-start predictor (`:constant` disables extrapolation) —
+trust-monitored `:secant` warm-start predictor (`:constant` disables extrapolation;
+`:quadratic`/`:cubic` extrapolate through the last three/four accepted points with
+adaptive order, exactly as in `HomotopySweep`) —
 but the driver is written in the direct, value-oriented SimpleNonlinearSolve style:
 each step calls `solve` on a freshly constructed (stack-allocated) inner problem
 instead of maintaining an inner-solver cache, and all sweep state is plain values.
@@ -126,10 +128,12 @@ function SimpleHomotopySweep(;
             )
         )
     end
-    if predictor !== :secant && predictor !== :constant
+    if predictor !== :secant && predictor !== :constant && predictor !== :quadratic &&
+            predictor !== :cubic
         throw(
             ArgumentError(
-                "SimpleHomotopySweep `predictor` must be :secant or :constant, got :$predictor"
+                "SimpleHomotopySweep `predictor` must be :constant, :secant, " *
+                    ":quadratic, or :cubic, got :$predictor"
             )
         )
     end
@@ -222,6 +226,32 @@ function _simple_effort_wants_shrink(nit::Int, budget::Int)
     return nit >= 0 && nit <= budget && 4 * nit >= 3 * budget
 end
 
+# Polynomial extrapolation through the last `ord + 1` accepted points evaluated at `t`
+# (value-oriented duplicate of NonlinearSolveBase's `_sweep_predict!`): the scalar
+# weights are the Lagrange basis values — algebraically identical to the Newton
+# divided-difference form, so non-uniform λ spacing is exact — and the prediction is
+# one fused broadcast, keeping the StaticArray/scalar path on the stack.
+_simple_sweep_predictor_order(predictor::Symbol) =
+    predictor === :cubic ? 3 : predictor === :quadratic ? 2 : predictor === :secant ? 1 : 0
+
+function _simple_sweep_predict(ord::Int, t, λ, λp, λp2, λp3, u, up, up2, up3)
+    if ord >= 3
+        w = ((t - λp) * (t - λp2) * (t - λp3)) / ((λ - λp) * (λ - λp2) * (λ - λp3))
+        wp = ((t - λ) * (t - λp2) * (t - λp3)) / ((λp - λ) * (λp - λp2) * (λp - λp3))
+        wp2 = ((t - λ) * (t - λp) * (t - λp3)) / ((λp2 - λ) * (λp2 - λp) * (λp2 - λp3))
+        wp3 = ((t - λ) * (t - λp) * (t - λp2)) / ((λp3 - λ) * (λp3 - λp) * (λp3 - λp2))
+        return @. w * u + wp * up + wp2 * up2 + wp3 * up3
+    elseif ord == 2
+        w = ((t - λp) * (t - λp2)) / ((λ - λp) * (λ - λp2))
+        wp = ((t - λ) * (t - λp2)) / ((λp - λ) * (λp - λp2))
+        wp2 = ((t - λ) * (t - λp)) / ((λp2 - λ) * (λp2 - λp))
+        return @. w * u + wp * up + wp2 * up2
+    else
+        s = (t - λ) / (λ - λp)
+        return @. u + s * (u - up)
+    end
+end
+
 function CommonSolve.solve(
         prob::SciMLBase.HomotopyProblem{uType, iip},
         alg::SimpleHomotopySweep, args...; kwargs...
@@ -260,8 +290,14 @@ function CommonSolve.solve(
     # λ_prev == λ means there is no secant history yet (constant warm start). The
     # trust counter and quality gate mirror `HomotopySweep` exactly; see its docstring
     # for the controller's rationale.
+    order = _simple_sweep_predictor_order(alg.predictor)
     u_prev = u
+    u_prev2 = u
+    u_prev3 = u
     λ_prev = λ
+    λ_prev2 = λ
+    λ_prev3 = λ
+    hist = 0
     streak = 0
     trust = 2
     disp_prev = zero(λT)
@@ -289,10 +325,13 @@ function CommonSolve.solve(
                 retcode = ReturnCode.Stalled, original = last_sol
             )
         end
-        used_secant = alg.predictor === :secant && trust >= 2 && λ_prev != λ
-        guess = if used_secant
-            s = (next_λ - λ) / (λ - λ_prev)
-            @. u + s * (u - u_prev)
+        # adaptive order: capped by the accumulated history (downgraded on rejection)
+        ord = min(order, hist)
+        used_extrap = ord >= 1 && trust >= 2
+        guess = if used_extrap
+            _simple_sweep_predict(
+                ord, next_λ, λ, λ_prev, λ_prev2, λ_prev3, u, u_prev, u_prev2, u_prev3
+            )
         else
             _simple_sweep_guess(u)
         end
@@ -324,10 +363,15 @@ function CommonSolve.solve(
             else
                 disp_prev = L2_NORM(last_sol.u .- u)
             end
+            u_prev3 = u_prev2
+            u_prev2 = u_prev
             u_prev = u
+            λ_prev3 = λ_prev2
+            λ_prev2 = λ_prev
             λ_prev = λ
             u = _simple_sweep_guess(last_sol.u)
             λ = next_λ
+            hist = min(hist + 1, 3)
             λ == λend && break
             if alg.adaptive
                 nit = last_sol.stats === nothing ? -1 : Int(last_sol.stats.nsteps)
@@ -353,6 +397,8 @@ function CommonSolve.solve(
             dλ = dλ / 2          # bisect; retry from the same λ (do not advance)
             streak = 0
             trust = 0
+            # downgrade higher-order history: pre-rejection spacing is stale
+            hist = min(hist, 1)
         else
             return SciMLBase.build_solution(
                 prob, alg, u, last_sol.resid;
