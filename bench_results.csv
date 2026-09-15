@@ -1,47 +1,47 @@
 idx,title,alg,success,resnorm,t_ms
-1,"Generalized Rosenbrock function",Dogleg (old default),true,3.6637359812630166e-13,1.369429
-1,"Generalized Rosenbrock function",Moré (new default),true,0.0,16.422608
-2,"Powell singular function",Dogleg (old default),true,1.735220186143943e-13,0.027625
-2,"Powell singular function",Moré (new default),true,1.7975467358991183e-13,0.163624
-3,"Powell badly scaled function",Dogleg (old default),true,0.0,0.0533345
-3,"Powell badly scaled function",Moré (new default),true,1.1102230246251565e-16,0.455977
-4,"Wood function",Dogleg (old default),true,8.215650382226158e-15,0.029855
-4,"Wood function",Moré (new default),true,1.2212453270876722e-14,0.6846445
-5,"Helical valley function",Dogleg (old default),true,9.45269303801393e-23,0.013
-5,"Helical valley function",Moré (new default),true,1.0073725649696855e-19,0.259653
-6,"Watson function",Dogleg (old default),true,4.107825191113079e-15,0.01614
-6,"Watson function",Moré (new default),true,4.9960036108132044e-15,0.0885495
-7,"Chebyquad function",Dogleg (old default),true,4.268807529683727e-14,0.00769
-7,"Chebyquad function",Moré (new default),true,1.6653345369377348e-16,0.0610045
-8,"Brown almost linear function",Dogleg (old default),true,6.994405055138486e-15,0.02033
-8,"Brown almost linear function",Moré (new default),true,1.7763568394002505e-15,0.1954485
-9,"Discrete boundary value function",Dogleg (old default),true,2.7755575615628914e-17,0.0232595
-9,"Discrete boundary value function",Moré (new default),true,2.7755575615628914e-16,0.06265
-10,"Discrete integral equation function",Dogleg (old default),true,2.7755575615628914e-17,0.042244
-10,"Discrete integral equation function",Moré (new default),true,1.304512053934559e-15,0.074444
-11,"Trigonometric function",Dogleg (old default),false,0.004295377270832262,0.6548555
-11,"Trigonometric function",Moré (new default),false,0.004283616897901188,4.454482
-12,"Variably dimensioned function",Dogleg (old default),true,0.0,0.0511695
-12,"Variably dimensioned function",Moré (new default),true,0.0,0.297103
-13,"Broyden tridiagonal function",Dogleg (old default),true,8.881784197001252e-16,0.02196
-13,"Broyden tridiagonal function",Moré (new default),true,1.1102230246251565e-15,0.1010495
-14,"Broyden banded function",Dogleg (old default),true,8.881784197001252e-16,0.0305395
-14,"Broyden banded function",Moré (new default),true,8.881784197001252e-16,0.128824
-15,"Hammarling 2 by 2 matrix square root problem",Dogleg (old default),true,4.234230452792696e-8,14.0571155
-15,"Hammarling 2 by 2 matrix square root problem",Moré (new default),true,4.20914480770496e-8,200.884866
-16,"Hammarling 3 by 3 matrix square root problem",Dogleg (old default),true,4.3235075447043936e-8,30.32792
-16,"Hammarling 3 by 3 matrix square root problem",Moré (new default),true,4.235568506449252e-8,479.998261
-17,"Dennis and Schnabel 2 by 2 example",Dogleg (old default),true,0.0,0.006375
-17,"Dennis and Schnabel 2 by 2 example",Moré (new default),true,0.0,0.0255845
-18,"Sample problem 18",Dogleg (old default),true,5.286045944540134e-18,0.01057
-18,"Sample problem 18",Moré (new default),true,6.542067608595031e-14,0.108559
-19,"Sample problem 19",Dogleg (old default),true,2.9444336768357237e-13,0.02102
-19,"Sample problem 19",Moré (new default),true,2.9444336768357257e-13,0.106814
-20,"Scalar problem f(x) = x(x - 5)^2",Dogleg (old default),true,1.9689968194316455e-24,0.0053095
-20,"Scalar problem f(x) = x(x - 5)^2",Moré (new default),true,5.551115123125783e-15,0.00862
-21,"Freudenstein-Roth function",Dogleg (old default),false,4.9489521496371545,0.0523145
-21,"Freudenstein-Roth function",Moré (new default),false,4.948952125012315,1.088062
-22,"Boggs function",Dogleg (old default),true,1.3838957830210898e-21,0.008765
-22,"Boggs function",Moré (new default),true,8.364418042393538e-21,0.04993
-23,"Chandrasekhar function",Dogleg (old default),true,2.220446049250313e-16,0.076435
-23,"Chandrasekhar function",Moré (new default),true,2.9976021664879227e-14,0.108009
+1,"Generalized Rosenbrock function",Dogleg (old default),true,3.6637359812630166e-13,1.3220595
+1,"Generalized Rosenbrock function",Moré (new default),true,0.0,2.0631895
+2,"Powell singular function",Dogleg (old default),true,1.735220186143943e-13,0.028205
+2,"Powell singular function",Moré (new default),true,1.797546735911272e-13,0.0367845
+3,"Powell badly scaled function",Dogleg (old default),true,0.0,0.053845
+3,"Powell badly scaled function",Moré (new default),true,0.0,0.0593245
+4,"Wood function",Dogleg (old default),true,8.215650382226158e-15,0.03001
+4,"Wood function",Moré (new default),true,8.215650382226158e-15,0.084989
+5,"Helical valley function",Dogleg (old default),true,9.45269303801393e-23,0.013245
+5,"Helical valley function",Moré (new default),true,1.0073684509108316e-19,0.031324
+6,"Watson function",Dogleg (old default),true,4.107825191113079e-15,0.01629
+6,"Watson function",Moré (new default),true,4.9960036108132044e-15,0.01898
+7,"Chebyquad function",Dogleg (old default),true,4.268807529683727e-14,0.00796
+7,"Chebyquad function",Moré (new default),true,1.6653345369377348e-16,0.010045
+8,"Brown almost linear function",Dogleg (old default),true,6.994405055138486e-15,0.020285
+8,"Brown almost linear function",Moré (new default),true,1.7763568394002505e-15,0.0371795
+9,"Discrete boundary value function",Dogleg (old default),true,2.7755575615628914e-17,0.02348
+9,"Discrete boundary value function",Moré (new default),true,2.7755575615628914e-16,0.019265
+10,"Discrete integral equation function",Dogleg (old default),true,2.7755575615628914e-17,0.0431595
+10,"Discrete integral equation function",Moré (new default),true,1.304512053934559e-15,0.030755
+11,"Trigonometric function",Dogleg (old default),false,0.004295377270832262,0.6515355
+11,"Trigonometric function",Moré (new default),false,0.00428361689790363,0.697485
+12,"Variably dimensioned function",Dogleg (old default),true,0.0,0.050659
+12,"Variably dimensioned function",Moré (new default),true,0.0,0.0732245
+13,"Broyden tridiagonal function",Dogleg (old default),true,8.881784197001252e-16,0.0213095
+13,"Broyden tridiagonal function",Moré (new default),true,8.881784197001252e-16,0.0277095
+14,"Broyden banded function",Dogleg (old default),true,8.881784197001252e-16,0.03014
+14,"Broyden banded function",Moré (new default),true,8.881784197001252e-16,0.041225
+15,"Hammarling 2 by 2 matrix square root problem",Dogleg (old default),true,4.234230452792696e-8,14.132848
+15,"Hammarling 2 by 2 matrix square root problem",Moré (new default),true,4.209144807703625e-8,24.525829
+16,"Hammarling 3 by 3 matrix square root problem",Dogleg (old default),true,4.3235075447043936e-8,30.320231
+16,"Hammarling 3 by 3 matrix square root problem",Moré (new default),true,4.235568506409006e-8,71.672859
+17,"Dennis and Schnabel 2 by 2 example",Dogleg (old default),true,0.0,0.006515
+17,"Dennis and Schnabel 2 by 2 example",Moré (new default),true,0.0,0.00725
+18,"Sample problem 18",Dogleg (old default),true,5.286045944540134e-18,0.01063
+18,"Sample problem 18",Moré (new default),true,6.541913099827108e-14,0.014005
+19,"Sample problem 19",Dogleg (old default),true,2.9444336768357237e-13,0.021365
+19,"Sample problem 19",Moré (new default),true,2.9444336768357247e-13,0.02566
+20,"Scalar problem f(x) = x(x - 5)^2",Dogleg (old default),true,1.9689968194316455e-24,0.005285
+20,"Scalar problem f(x) = x(x - 5)^2",Moré (new default),true,5.551115123125783e-15,0.00262
+21,"Freudenstein-Roth function",Dogleg (old default),false,4.9489521496371545,0.053334
+21,"Freudenstein-Roth function",Moré (new default),false,4.948952109901356,0.074939
+22,"Boggs function",Dogleg (old default),true,1.3838957830210898e-21,0.008825
+22,"Boggs function",Moré (new default),true,8.364398655347931e-21,0.0098
+23,"Chandrasekhar function",Dogleg (old default),true,2.220446049250313e-16,0.075909
+23,"Chandrasekhar function",Moré (new default),true,2.9976021664879227e-14,0.0493295
